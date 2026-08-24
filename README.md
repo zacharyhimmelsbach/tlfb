@@ -63,6 +63,24 @@ This will create the final bundle under `static/tlfb-v3-bundle.js`.
 
 Simply copy `index.html` and the `static/` directory onto your production webserver.
 
+## Automated Tests
+
+Install the locked development dependencies, then run the Jest test suite:
+
+```bash
+npm ci
+npm test
+```
+
+Additional verification commands are available for TypeScript and coverage:
+
+```bash
+npm run typecheck
+npm run test:coverage
+```
+
+Tests use a simulated browser environment and lightweight FullCalendar fakes, so they do not require a web server or browser. Pull requests and pushes to `master` run the type check and coverage suite automatically with GitHub Actions.
+
 ## REDCap Compatibility
 
 For accuracy and efficiency, the timeline followback settings can be autofilled using data from REDCap passed in the [URL query string](https://en.wikipedia.org/wiki/Query_string).

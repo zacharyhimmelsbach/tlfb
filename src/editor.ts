@@ -59,8 +59,8 @@ export class Editor {
         this._modal_confirm = new Modal('modal-confirm')
 
         const query = new URLSearchParams(window.location.search); 
-        const start = (query.get('start') == undefined) ? query.get('start') as string : '2000-01-01'
-        const end = (query.get('end') == undefined) ? query.get('end') as string : '2000-01-01'
+        const start = query.get('start') || '2000-01-01'
+        const end = query.get('end') || '2000-01-01'
         this._event_list = new CalendarEventList(start, end, this._calendar)
     } 
 
@@ -405,6 +405,7 @@ export class Editor {
                 break;
             case 'no-sub':
                 this._event_list.add(new NoUseEvent(ev.dateStr))
+                break;
             case 'copy':
                 if (this._copy_buffer) {
                     const copy = this._copy_buffer.clone()
@@ -424,7 +425,7 @@ export class Editor {
         console.log(`Edit.select_range(): ${ev.startStr} to ${ev.endStr}`)
 
         const until = new Date(ev.endStr)
-        until.setDate(ev.end.getDate() - 2)
+        until.setUTCDate(until.getUTCDate() - 1)
         const untilStr = until.toISOString().substring(0,10)
 
         switch (this._mode) {

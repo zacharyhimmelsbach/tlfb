@@ -23,8 +23,12 @@ export class CalendarDate {
 
         this._date = new Date(date);
 
-        if (isNaN(this._date.valueOf()))
-            throw new Error('CalanderDate received an invalid date.');
+        const [year, month, day] = date.split('-').map(Number);
+        if (isNaN(this._date.valueOf()) ||
+            this._date.getUTCFullYear() !== year ||
+            this._date.getUTCMonth() + 1 !== month ||
+            this._date.getUTCDate() !== day)
+            throw new Error('CalendarDate received an invalid date.');
     }
 
     public get Date(): Date {

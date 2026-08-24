@@ -231,7 +231,7 @@ export class File {
         // Only use events within given date range (in case events were added before date range change)
         const substance_use_events: CalendarEvent[] = this._editor.get_event_list().get_events().filter((event) => 
             (event.date_object.isAfter(start) || event.date_object.isSameDay(start)) &&
-            (event.date_object.isBefore(end)) &&
+            (event.date_object.isBefore(end) || event.date_object.isSameDay(end)) &&
             (UseEvent.prototype.isPrototypeOf(event))
         )
 

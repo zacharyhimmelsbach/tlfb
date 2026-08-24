@@ -128,7 +128,7 @@ export function update_properties(properties: TLFBProperties, updated: (object |
     const query = new URLSearchParams(window.location.search);
 
     property_params.forEach((param) => {
-        query.set(param.name, updated[param.to as keyof typeof updated]);
+        query.set(param.name, String(properties[param.to as keyof TLFBProperties]));
     })
 
     const base_url = window.location.href.split("?")[0]
