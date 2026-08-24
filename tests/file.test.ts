@@ -5,6 +5,7 @@ jest.mock('../src/main', () => ({
 import type { Editor } from '../src/editor';
 import { File } from '../src/file';
 import {
+  CalendarDate,
   CalendarEventList,
   KeyEvent,
   NoUseEvent,
@@ -50,25 +51,51 @@ function properties(): TLFBProperties {
 }
 
 function mountFileDom() {
-  document.body.innerHTML = MODAL_IDS
-    .map((id) => `<div id="${id}" class="modal"></div>`)
-    .join('');
+  document.body.innerHTML = [
+    ...MODAL_IDS.map((id) => `<div id="${id}" class="modal"></div>`),
+    `<div id="modal-incomplete-export" class="modal">
+      <p id="incomplete-export-description"></p>
+      <p id="incomplete-export-guidance"></p>
+      <details id="incomplete-export-date-details">
+        <summary id="missing-date-summary"></summary>
+        <ul id="missing-date-list"></ul>
+      </details>
+      <button id="incomplete-export-return" class="cancel-operation" type="button"></button>
+    </div>`,
+  ].join('');
 }
 
 type EventListStub = {
+  get_events?: jest.Mock;
   import_events?: jest.Mock;
   serialize_events?: jest.Mock;
 };
 
-function makeFile(eventList?: EventListStub) {
+function completeRangeEvents(start: string, end: string) {
+  const events: NoUseEvent[] = [];
+  const endDate = new CalendarDate(end);
+
+  for (let date = new CalendarDate(start); !date.isAfter(endDate); date = date.next_day) {
+    events.push(new NoUseEvent(date.toString()));
+  }
+
+  return events;
+}
+
+function makeFile(eventList?: EventListStub, currentProperties = properties()) {
   mountFileDom();
 
   const calendar = new FakeCalendar();
-  const list = eventList ?? new CalendarEventList(
-    '2024-01-01',
-    '2024-01-31',
-    calendar.asCalendar(),
-  );
+  const list = eventList
+    ? {
+      get_events: jest.fn(() => completeRangeEvents(currentProperties.start, currentProperties.end)),
+      ...eventList,
+    }
+    : new CalendarEventList(
+      currentProperties.start,
+      currentProperties.end,
+      calendar.asCalendar(),
+    );
   const editor = {
     get_event_list: jest.fn(() => list),
     update_substances_used: jest.fn(),
@@ -78,7 +105,7 @@ function makeFile(eventList?: EventListStub) {
     calendar,
     editor,
     eventList: list,
-    file: new File(properties(), calendar.asCalendar(), editor),
+    file: new File(currentProperties, calendar.asCalendar(), editor),
   };
 }
 
@@ -396,6 +423,123 @@ describe('File event deserialization', () => {
 });
 
 describe('File exports', () => {
+  test.each(['json', 'csv'] as const)(
+    'blocks %s export and lists dates without a use indication',
+    (format) => {
+      const currentProperties = {
+        ...properties(),
+        start: '2024-01-01',
+        end: '2024-01-03',
+        days: 3,
+      };
+      const serializeEvents = jest.fn(() => []);
+      const events = [
+        new NoUseEvent('2024-01-01'),
+        new KeyEvent('2024-01-02', 'Birthday'),
+        new NoUseEvent('2024-01-03'),
+      ];
+      const { file } = makeFile({
+        get_events: jest.fn(() => events),
+        serialize_events: serializeEvents,
+      }, currentProperties);
+
+      if (format === 'json') file.export_json();
+      else file.export_csv();
+
+      expect(serializeEvents).not.toHaveBeenCalled();
+      expect(URL.createObjectURL).not.toHaveBeenCalled();
+      expect(HTMLAnchorElement.prototype.click).not.toHaveBeenCalled();
+      expect(URL.revokeObjectURL).not.toHaveBeenCalled();
+      expect(document.getElementById('modal-incomplete-export')!.classList).toContain('is-active');
+      expect(document.getElementById('incomplete-export-description')!.innerText).toBe(
+        '1 day is missing an indication.',
+      );
+      expect(document.getElementById('missing-date-summary')!.innerText).toBe(
+        'Show missing dates (1)',
+      );
+      expect(Array.from(document.querySelectorAll('#missing-date-list time')).map(
+        (element) => [element.getAttribute('datetime'), (element as HTMLElement).innerText],
+      )).toEqual([['2024-01-02', '2024-01-02']]);
+      expect(document.activeElement).toBe(document.getElementById('incomplete-export-return'));
+    },
+  );
+
+  test('checks current events again when an incomplete export is retried', () => {
+    const currentProperties = {
+      ...properties(),
+      start: '2024-01-01',
+      end: '2024-01-02',
+      days: 2,
+    };
+    const events = [new NoUseEvent('2024-01-01')];
+    const serializeEvents = jest.fn(() => []);
+    const { file } = makeFile({
+      get_events: jest.fn(() => events),
+      serialize_events: serializeEvents,
+    }, currentProperties);
+
+    file.export_json();
+    expect(URL.createObjectURL).not.toHaveBeenCalled();
+
+    document.getElementById('incomplete-export-return')!.click();
+    events.push(new NoUseEvent('2024-01-02'));
+    file.export_json();
+
+    expect(serializeEvents).toHaveBeenCalledWith('json');
+    expect(URL.createObjectURL).toHaveBeenCalledTimes(1);
+    expect(HTMLAnchorElement.prototype.click).toHaveBeenCalledTimes(1);
+  });
+
+  test('checks the live property range instead of the event list constructor range', () => {
+    const currentProperties = {
+      ...properties(),
+      start: '2024-01-01',
+      end: '2024-01-01',
+      days: 1,
+    };
+    const events = [new NoUseEvent('2024-01-01')];
+    const serializeEvents = jest.fn(() => []);
+    const { file } = makeFile({
+      get_events: jest.fn(() => events),
+      serialize_events: serializeEvents,
+    }, currentProperties);
+
+    file.export_json();
+    expect(serializeEvents).toHaveBeenCalledTimes(1);
+
+    currentProperties.end = '2024-01-02';
+    currentProperties.days = 2;
+    file.export_json();
+
+    expect(serializeEvents).toHaveBeenCalledTimes(1);
+    expect(document.getElementById('incomplete-export-description')!.innerText).toBe(
+      '1 day is missing an indication.',
+    );
+    expect(document.querySelector('#missing-date-list time')!.getAttribute('datetime')).toBe('2024-01-02');
+  });
+
+  test('blocks export when the current property range is invalid', () => {
+    const currentProperties = {
+      ...properties(),
+      start: '2024-01-03',
+      end: '2024-01-01',
+      days: -1,
+    };
+    const serializeEvents = jest.fn(() => []);
+    const { file } = makeFile({
+      get_events: jest.fn(() => []),
+      serialize_events: serializeEvents,
+    }, currentProperties);
+
+    file.export_csv();
+
+    expect(serializeEvents).not.toHaveBeenCalled();
+    expect(document.getElementById('incomplete-export-description')!.innerText).toBe(
+      'The timeline date range is missing or invalid.',
+    );
+    expect(document.getElementById('incomplete-export-date-details')!.classList).toContain('is-hidden');
+  });
+
   test('exports the expected JSON payload and filename', async () => {
     jest.useFakeTimers().setSystemTime(new Date('2024-02-01T12:34:56.000Z'));
     const serializeEvents = jest.fn(() => [

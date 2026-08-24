@@ -106,6 +106,8 @@ If the data is to be imported into REDCap, a repeating instrument will be necess
 
 After the researcher has completed the procedure, the calendar must be downloaded from the application to be saved temporarily on the researcher's computer. Two export formats are available. Both formats include the metadata passed in via the query string (or modified in the TLFB Properties window), the application version, and the list of substance use events and key events.
 
+Before either format can be exported, every date in the timeline range must contain a substance-use event or an explicit **No Substances Used** indication. Key dates are memory aids and do not count as use indications. If the timeline is incomplete, the application blocks the download and lists every date that still needs an indication.
+
 ### CSV Format
 
 This tabular format include the session metadata in a header. With some modification, the CSV can be uploaded to a [REDCap repeating instrument](https://github.com/user-attachments/files/20190265/TimelineFollowback_2025-03-06_1446.zip). Alternatively, the data file may be stored separately for processing by custom software.
