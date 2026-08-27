@@ -561,6 +561,39 @@
           <!-- END Get Summary -->
 
 
+          <!-- Incomplete Timeline Export Warning -->
+          <div id="modal-incomplete-export" class="modal" role="alertdialog" aria-modal="true"
+            aria-labelledby="incomplete-export-title"
+            aria-describedby="incomplete-export-description incomplete-export-guidance">
+            <div class="modal-background"></div>
+            <div class="modal-card">
+              <header class="modal-card-head">
+                <p id="incomplete-export-title" class="modal-card-title">Complete the timeline before exporting</p>
+              </header>
+
+              <section class="modal-card-body">
+                <div class="content">
+                  <p id="incomplete-export-description" class="has-text-weight-semibold"></p>
+                  <p id="incomplete-export-guidance"></p>
+
+                  <details id="incomplete-export-date-details" class="mt-4">
+                    <summary id="missing-date-summary">Show missing dates</summary>
+                    <ul id="missing-date-list" class="mt-2"
+                      style="column-width: 10rem; max-height: 14rem; overflow-y: auto;"></ul>
+                  </details>
+                </div>
+              </section>
+
+              <footer class="modal-card-foot">
+                <button id="incomplete-export-return" class="button is-link is-fullwidth cancel-operation"
+                  type="button">Return to calendar</button>
+              </footer>
+            </div>
+            <button class="modal-close is-large" aria-label="Close completion notice"></button>
+          </div>
+          <!-- END Incomplete Timeline Export Warning -->
+
+
           <!-- Confirm Export -->
           <div id="modal-confirm-export" class="modal">
             <div class="modal-background"></div>

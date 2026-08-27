@@ -63,6 +63,24 @@ This will create the final bundle under `static/tlfb-v3-bundle.js`.
 
 Simply copy `index.html` and the `static/` directory onto your production webserver.
 
+## Automated Tests
+
+Install the locked development dependencies, then run the Jest test suite:
+
+```bash
+npm ci
+npm test
+```
+
+Additional verification commands are available for TypeScript and coverage:
+
+```bash
+npm run typecheck
+npm run test:coverage
+```
+
+Tests use a simulated browser environment and lightweight FullCalendar fakes, so they do not require a web server or browser. Pull requests and pushes to `master` run the type check and coverage suite automatically with GitHub Actions.
+
 ## REDCap Compatibility
 
 For accuracy and efficiency, the timeline followback settings can be autofilled using data from REDCap passed in the [URL query string](https://en.wikipedia.org/wiki/Query_string).
@@ -87,6 +105,8 @@ If the data is to be imported into REDCap, a repeating instrument will be necess
 ## Data Export and Download
 
 After the researcher has completed the procedure, the calendar must be downloaded from the application to be saved temporarily on the researcher's computer. Two export formats are available. Both formats include the metadata passed in via the query string (or modified in the TLFB Properties window), the application version, and the list of substance use events and key events.
+
+Before either format can be exported, every date in the timeline range must contain a substance-use event or an explicit **No Substances Used** indication. Key dates are memory aids and do not count as use indications. If the timeline is incomplete, the application blocks the download and lists every date that still needs an indication.
 
 ### CSV Format
 

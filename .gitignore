@@ -2,8 +2,8 @@ lib/
 data/*
 !data/.gitkeep
 node_modules/
+coverage/
 .vscode/
 .DS_Store
 static/*
 !static/tlfb-v3-bundle.js
-

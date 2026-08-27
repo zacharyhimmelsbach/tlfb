@@ -6,6 +6,9 @@
 import { UseEvent, CalendarEvent } from "./state";
 import { CVT_MS_DAY } from "./constants";
 
+function is_use_event(event: CalendarEvent): event is UseEvent {
+    return UseEvent.prototype.isPrototypeOf(event);
+}
 
 function calc_use_days(eventlist: Array<CalendarEvent>, category: string, include_unknown: boolean): Array<string> {
 
@@ -13,10 +16,10 @@ function calc_use_days(eventlist: Array<CalendarEvent>, category: string, includ
     let use_days_amount: Set<string> = new Set();
 
     for (let event of eventlist) {
-            if((event as UseEvent).properties.category === category){
+            if(is_use_event(event) && event.properties.category === category){
                 use_days.add(event.date.substring(0,10));
 
-                if ((event as UseEvent).properties.amount != "unknown") {
+                if (event.properties.amount != "unknown") {
                     use_days_amount.add(event.date.substring(0,10));
                 }
             } 
@@ -50,8 +53,8 @@ export function calc_total_occasions(eventlist: Array<CalendarEvent>, category: 
     let total = 0;
 
     for (let event of eventlist) {
-        if((event as UseEvent).properties.category === category){
-            total+=Number((event as UseEvent).properties.times)
+        if(is_use_event(event) && event.properties.category === category){
+            total+=Number(event.properties.times)
         } 
     }
 
@@ -66,10 +69,11 @@ export function calc_total_units(eventlist: Array<CalendarEvent>, substance: str
     let total = 0;
 
     for (let event of eventlist) {
-        if ((event as UseEvent).properties.substance == substance && 
-            (event as UseEvent).properties.units == units &&
-            (event as UseEvent).properties.amount != "unknown")
-            total = total + Number((event as UseEvent).properties.amount);
+        if (is_use_event(event) &&
+            event.properties.substance == substance &&
+            event.properties.units == units &&
+            event.properties.amount != "unknown")
+            total = total + Number(event.properties.amount);
     }
 
     return total;

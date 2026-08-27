@@ -23,8 +23,12 @@ export class CalendarDate {
 
         this._date = new Date(date);
 
-        if (isNaN(this._date.valueOf()))
-            throw new Error('CalanderDate received an invalid date.');
+        const [year, month, day] = date.split('-').map(Number);
+        if (isNaN(this._date.valueOf()) ||
+            this._date.getUTCFullYear() !== year ||
+            this._date.getUTCMonth() + 1 !== month ||
+            this._date.getUTCDate() !== day)
+            throw new Error('CalendarDate received an invalid date.');
     }
 
     public get Date(): Date {
@@ -270,6 +274,50 @@ export class NoUseEvent extends CalendarEvent {
     public get colors(): [string, string] {
         return [COLOR_YELLOW, COLOR_TEXT] //
     } 
+}
+
+export type TimelineCoverage = {
+    status: 'complete' | 'incomplete' | 'invalid-range';
+    missingDates: string[];
+}
+
+// Determine which dates in an inclusive timeline range do not contain a
+// substance-use or explicit no-use indication. Key events are memory aids and
+// do not indicate whether substances were used on a date.
+export function check_timeline_coverage(
+    events: readonly CalendarEvent[],
+    start: string,
+    end: string
+): TimelineCoverage {
+    let start_date: CalendarDate;
+    let end_date: CalendarDate;
+
+    try {
+        start_date = new CalendarDate(start);
+        end_date = new CalendarDate(end);
+    } catch {
+        return {status: 'invalid-range', missingDates: []};
+    }
+
+    if (end_date.isBefore(start_date))
+        return {status: 'invalid-range', missingDates: []};
+
+    const indicated_dates = new Set(
+        events
+            .filter((event) => event.type === 'use' || event.type === 'no-use')
+            .map((event) => event.date)
+    );
+    const missing_dates: string[] = [];
+
+    for (let date = start_date; !date.isAfter(end_date); date = date.next_day) {
+        if (!indicated_dates.has(date.toString()))
+            missing_dates.push(date.toString());
+    }
+
+    return {
+        status: missing_dates.length === 0 ? 'complete' : 'incomplete',
+        missingDates: missing_dates
+    };
 }
 
 // A CalendarEvents object stores an array of calendar events and provides

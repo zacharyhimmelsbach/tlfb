@@ -11,7 +11,7 @@ import { Modal } from './modal'
 import { update_properties } from "./main";
 import { TLFBProperties, SubstanceList, SubstanceInfo, SubstanceUseList, JSONData, SerializedEvent, UseEventProperties, JSONEvent } from './types'
 import { Calendar } from '@fullcalendar/core';
-import { CalendarDate, CalendarEvent, UseEvent, NoUseEvent, KeyEvent } from './state';
+import { CalendarDate, CalendarEvent, UseEvent, NoUseEvent, KeyEvent, TimelineCoverage, check_timeline_coverage } from './state';
 
 import * as calculate from './calculate'
 import * as util from './util'
@@ -31,7 +31,8 @@ export class File {
     private _modal_summary: Modal;
     private _modal_import_json: Modal;
     private _modal_import_csv: Modal;
-    private _modal_confirm_import: Modal;
+    private _modal_confirm_export: Modal;
+    private _modal_incomplete_export: Modal;
 
     private _substance_list: SubstanceList;
     private _substances_used: SubstanceUseList;
@@ -45,7 +46,8 @@ export class File {
         this._modal_summary = new Modal('modal-get-summary');
         this._modal_import_json = new Modal('modal-import-json');
         this._modal_import_csv = new Modal('modal-import-csv');
-        this._modal_confirm_import = new Modal('modal-confirm-export')
+        this._modal_confirm_export = new Modal('modal-confirm-export')
+        this._modal_incomplete_export = new Modal('modal-incomplete-export')
 
         this._substance_list = require('../substances.json');
 
@@ -231,7 +233,7 @@ export class File {
         // Only use events within given date range (in case events were added before date range change)
         const substance_use_events: CalendarEvent[] = this._editor.get_event_list().get_events().filter((event) => 
             (event.date_object.isAfter(start) || event.date_object.isSameDay(start)) &&
-            (event.date_object.isBefore(end)) &&
+            (event.date_object.isBefore(end) || event.date_object.isSameDay(end)) &&
             (UseEvent.prototype.isPrototypeOf(event))
         )
 
@@ -284,7 +286,10 @@ export class File {
         document.getElementById('tlfb_nic_last_use')!.innerHTML = String(calculate.calc_days_since_last_use(substance_use_events, "nic", today));
 
         this._modal_summary.open(() => {
-            this._modal_confirm_import.open((data: FormData) => {
+            if (!this.ensure_timeline_complete())
+                return
+
+            this._modal_confirm_export.open((data: FormData) => {
                 if (data.get('select-export-method') === 'json') {
                     this.export_json()
                 } else if (data.get('select-export-method') === 'csv'){
@@ -858,6 +863,9 @@ export class File {
 
     // Exporting data:
     public export_json() {
+        if (!this.ensure_timeline_complete())
+            return
+
         const file_name = "TLFB-" + this._current_properties.pid + "-" + this._current_properties.subject + "-" + this._current_properties.start + 
                           "-" + this._current_properties.end + ".json";
 
@@ -888,6 +896,9 @@ export class File {
     }
 
     public export_csv() {
+        if (!this.ensure_timeline_complete())
+            return
+
         const file_name = "TLFB-" + this._current_properties.pid + "-" + this._current_properties.subject + "-" + this._current_properties.start + 
                           "-" + this._current_properties.end + ".csv";
 
@@ -923,6 +934,55 @@ export class File {
 
 
     // Misc. helper functions:
+    private ensure_timeline_complete() {
+        const coverage = check_timeline_coverage(
+            this._editor.get_event_list().get_events(),
+            this._current_properties.start,
+            this._current_properties.end
+        )
+
+        if (coverage.status === 'complete')
+            return true
+
+        this.show_incomplete_export(coverage)
+        return false
+    }
+
+    private show_incomplete_export(coverage: TimelineCoverage) {
+        const description = document.getElementById('incomplete-export-description')!
+        const guidance = document.getElementById('incomplete-export-guidance')!
+        const details = document.getElementById('incomplete-export-date-details') as HTMLDetailsElement
+        const summary = document.getElementById('missing-date-summary')!
+        const date_list = document.getElementById('missing-date-list')!
+
+        date_list.replaceChildren()
+
+        if (coverage.status === 'invalid-range') {
+            description.innerText = 'The timeline date range is missing or invalid.'
+            guidance.innerText = 'Update the start and end dates under File > Properties before exporting.'
+            details.classList.add('is-hidden')
+        } else {
+            const count = coverage.missingDates.length
+            description.innerText = `${count} ${count === 1 ? 'day is' : 'days are'} missing an indication.`
+            guidance.innerText = `For every day from ${this._current_properties.start} through ${this._current_properties.end}, record substance use or mark No Substances Used. Key Dates do not count as use indications.`
+            summary.innerText = `Show missing dates (${count})`
+            details.classList.remove('is-hidden')
+            details.open = false
+
+            coverage.missingDates.forEach((date) => {
+                const list_item = document.createElement('li')
+                const time = document.createElement('time')
+                time.dateTime = date
+                time.innerText = date
+                list_item.appendChild(time)
+                date_list.appendChild(list_item)
+            })
+        }
+
+        this._modal_incomplete_export.open()
+        document.getElementById('incomplete-export-return')?.focus()
+    }
+
     public reset_modal_text(elements: HTMLElement[]) {
         elements.forEach((element) => {
             element.innerText = ""
